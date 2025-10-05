@@ -195,3 +195,120 @@ function createAccount() returns error? {
 // );
 
 // Login
+function login() returns string?| error? {
+    io:print("Enter Email: ");
+    string email = io:readln();
+
+    if email.trim().length() == 0 {
+        io:println("First name cannot be empty!");
+        return error("Empty email");
+    }
+
+    io:print("Enter password: ");
+    string password = io:readln();
+
+    if password.trim().length() == 0 {
+        io:println("First name cannot be empty!");
+        return error("Empty first name");
+    }
+
+    stream<record {|string passengerId;|}, sql:Error?> result =
+        dbClient->query(`SELECT passenger_id as passengerId 
+                         FROM passengers 
+                         WHERE email = ${email} AND password = ${password}`);
+
+    var row = result.next();
+
+    if row is sql:Error {
+        io:println("Database error: ", row.message());
+        return ();
+    } else if row is record {|record {|string passengerId;|} value;|} {
+        return row.value.passengerId;
+    } else {
+        io:println("Invalid credentials.");
+        return ();
+    }
+}
+
+function browseTrips() returns error? {
+    io:println("\nAvailable Trips:");
+
+    stream<record {|string trip_name; string departure_time; string arrival_time; decimal price;|}, sql:Error?> res =
+        dbClient->query(`SELECT trip_name, departure_time, arrival_time, price 
+                         FROM trips 
+                         WHERE status = 'SCHEDULED'
+                         ORDER BY departure_time ASC LIMIT 5`);
+
+    var row = check res.next();
+    while row is record {|record {|string trip_name; string departure_time; string arrival_time; decimal price;|} value;|} {
+        io:println("Trip: " + row.value.trip_name);
+        io:println("Departure: " + row.value.departure_time);
+        io:println("Arrival:   " + row.value.arrival_time);
+        io:println("Price:     N$ " + row.value.price.toString());
+        io:println("───────────────────────────────");
+        row = check res.next();
+    }
+}
+
+// CREATE TABLE trips (
+//     trip_id CHAR(36) PRIMARY KEY,
+//     trip_name VARCHAR(100) NOT NULL,
+//     departure_time DATETIME NOT NULL,
+//     arrival_time   DATETIME NOT NULL,
+//     vehicle_Id varchar(50) NOT NULL,
+//     status ENUM('SCHEDULED','DELAYED','CANCELLED','COMPLETED') DEFAULT 'SCHEDULED'
+// );
+
+function purchaseTicket() returns error? {
+    if currentPassengerId is () {
+        io:println("You must log in first.");
+        return;
+    }
+
+    io:print("Enter Trip name:");
+    string trip_name = io:readln();
+
+    io:print("Ticket type (single/multi/pass): ");
+    string tType = io:readln();
+
+    // Get the trip_id based on the trip_name
+    stream<record {|string trip_id;|}, sql:Error?> request = dbClient->query(`SELECT trip_id AS trip_id 
+                         FROM trips 
+                         WHERE trip_name = ${trip_name} LIMIT 1`);
+
+    var row = request.next();
+
+    if row is sql:Error {
+        io:println("Database error: ", row.message());
+        return row;
+    } else if row is record {| record {| string trip_id; |} value; |} {
+        string trip_id = row.value.trip_id;
+
+        // Step 2: Create the ticket
+        if currentPassengerId is string {
+            if currentPassengerId is string {
+                Ticket ticket = {
+                    ticket_id: uuid:createType1AsString(),
+                    passenger_id: currentPassengerId,
+                    trip_id: trip_id,
+                    ticket_type: tType,
+                    status: "PAID"
+                };
+
+                var insertResult = dbClient->execute(
+                `INSERT INTO tickets (ticket_id, passenger_id, trip_id, type, status)
+                 VALUES (${ticket.ticket_id}, ${ticket.passenger_id}, ${ticket.trip_id}, ${ticket.ticket_type}, ${ticket.status})`);
+
+                if insertResult is sql:Error {
+                    io:println("Failed to save ticket: ", insertResult.message());
+                } else {
+                    io:println("Ticket purchased successfully!");
+                }
+            }
+        }
+        else {
+            io:println("No trip found with that name. Please check the spelling.");
+        }
+        return;
+    }
+}
