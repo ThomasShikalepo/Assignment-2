@@ -256,3 +256,120 @@ function updateTrip() returns error? {
 
     io:println("Trip updated successfully!");
 }
+function publishDisruption() returns error? {
+    io:println("\n--- Publish Service Disruption ---");
+
+    io:print("Title: ");
+    string title = io:readln();
+
+    if title == "exit" {
+        io:println("Cancelled");
+        return;
+    }
+
+    io:print("Desruption: ");
+    string desruption = io:readln();
+
+    Disruption disruption = {
+        disruptionId: uuid:createType1AsString(),
+        title: title,
+        description: desruption
+    };
+
+    // Insert into database
+    sql:ExecutionResult _ = check dbClient->execute(
+        `INSERT INTO disruptions (disruption_id, title, description)
+         VALUES (${disruption.disruptionId}, ${disruption.title}, ${disruption.description})`
+    );
+
+    // Convert to JSON
+    json disruptionJson = <json>disruption;
+
+    // Publish Kafka event
+    json event = {
+        action: "DISRUPTION",
+        data: disruptionJson
+    };
+
+    check producer->send({
+        topic: "notifications",
+        value: event.toJsonString()
+    });
+
+    io:println("Disruption Published: " + event.toJsonString());
+}
+
+function viewReports() returns error? {
+    io:println("\n--- Ticket Sales & Trip Reports ---");
+
+    // Count trips by status
+    stream<record {|string status; int count;|}, sql:Error?> statusResult =
+        dbClient->query(`SELECT status, COUNT(*) as count FROM trips GROUP BY status`);
+
+    io:println("\nTrips by Status:");
+    record {|record {|string status; int count;|} value;|}? row = check statusResult.next();
+    while row is record {|record {|string status; int count;|} value;|} {
+        io:println(" - " + row.value.status + ": " + row.value.count.toString());
+        row = check statusResult.next();
+    }
+
+    //  Trips by Vehicle
+    stream<record {|string vehicleId; int count;|}, sql:Error?> vehicleResult =
+        dbClient->query(`SELECT vehicle_Id as vehicleId, COUNT(*) as count FROM trips GROUP BY vehicle_Id`);
+
+    record {|record {|string vehicleId; int count;|} value;|}? vrow = check vehicleResult.next();
+    while vrow is record {|record {|string vehicleId; int count;|} value;|} {
+        io:println(" - Vehicle " + vrow.value.vehicleId + ": " + vrow.value.count.toString());
+        vrow = check vehicleResult.next();
+    }
+
+    // UPCOMING TRIPS
+
+    io:println("\nUpcoming Scheduled Trips:");
+
+    // Keep the rowType in the stream
+    stream<TripSummary, sql:Error?> upComingResult =
+    dbClient->query(`SELECT trip_id, trip_name, departure_time
+                     FROM trips 
+                     WHERE status = 'SCHEDULED'
+                     ORDER BY departure_time ASC LIMIT 5`,
+                    TripSummary);
+
+    // Fetch first row
+    record {|TripSummary value;|}? wrappedRow = check upComingResult.next();
+
+    // Loop while row is present
+    while wrappedRow is record {|TripSummary value;|} {
+        TripSummary upComing = wrappedRow.value; // unpack .value
+        io:println(" - " + upComing.trip_name + " (Trip ID: " + upComing.trip_id +
+                ") departs at " + upComing.departure_time);
+
+        // fetch next
+        wrappedRow = check upComingResult.next();
+    }
+
+    
+}
+
+// Entry point
+public function main() returns error? {
+    io:println("Admin Service started.\n");
+    check adminSelection();
+}
+
+function publishTripEvent(string action, json payload) returns error? {
+    // Ensure payload is proper JSON
+    json eventPlayload = check <json>payload;
+
+    json event = {
+        action: action,
+        data: eventPlayload
+    };
+
+    check producer->send({
+        topic: "trips",
+        value: event.toJsonString()
+    });
+
+    io:println("Kafka Event Published: " + event.toJsonString());
+}
