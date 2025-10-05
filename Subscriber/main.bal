@@ -55,3 +55,37 @@ public function main() returns error? {
     io:println("PASSAGER SERVIVICE STARTED");
     check authMenu();
 }
+
+function authMenu() returns error? {
+    while true {
+        io:println("\n--- Welcome Passenger ---");
+        io:println("1. Create Account");
+        io:println("2. Login");
+        io:println("3. Exit");
+        io:print("Enter choice: ");
+        int choice = check int:fromString(io:readln());
+
+        match choice {
+            1 => {
+                check createAccount();
+            }
+            2 => {
+                string? loggedInId = check login();
+
+                if loggedInId is string {
+                    currentPassengerId = loggedInId;
+                    io:println("Login successful! Opening Passenger Menu...");
+                    check passengerSelection();
+                }
+            }
+
+            3 => {
+                io:print("Goodbye!");
+                break;
+            }
+            _ => {
+                io:println("Invalid choice.");
+            }
+        }
+    }
+}
