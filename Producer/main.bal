@@ -53,54 +53,30 @@ kafka:ProducerConfiguration producerConfig = {
 
 kafka:Producer producer = check new (KAFKA_BROKE, producerConfig);
 
-function createTrip() returns error? {
-    io:println("\n--- Admin: Add a Trip ---");
-    io:print("Trip Name: ");
-    string tripName = io:readln();
+function manageTrips() returns error? {
+    io:println("\n--- Manage Trips ---");
+    io:println("1. Update Trip");
+    io:println("2. Delete Trip");
+    io:println("3. back to Admin Menu");
 
-    if tripName == "exit" {
-        io:println("Cancelled trip creation.");
-        return;
+    io:print("Enter your choice: ");
+    int choice = check int:fromString(io:readln());
+
+    match choice {
+        1 => {
+            check updateTrip();
+        }
+
+        2 => {
+            check deleteTrip();
+        }
+
+        3 => {
+            io:println("Returning to Admin Menu...");
+            adminMenu();
+        }
+        _ => {
+            io:println("Invalid choice, try again.");
+        }
     }
-
-    io:print("Departure Time (yyyy-mm-dd hh:mm:ss): ");
-    string departureTime = io:readln();
-
-    io:print("Arrival Time (yyyy-mm-dd hh:mm:ss): ");
-    string arrivalTime = io:readln();
-
-    io:print("Ticket Price: ");
-    decimal price = check decimal:fromString(io:readln());
-
-    io:print("Vehicle ID: ");
-    string vehicleId = io:readln();
-
-    // Create Trip record
-    Trips trip = {
-        tripId: uuid:createType1AsString(),
-        trip_name: tripName,
-        departure_time: departureTime,
-        arrival_time: arrivalTime,
-        vehicleId: vehicleId,
-        price: price,
-        status: "SCHEDULED"
-    };
-
-    // Insert into database
-    sql:ExecutionResult _ = check dbClient->execute(
-    `INSERT INTO trips (trip_id, trip_name, departure_time, arrival_time, vehicle_Id,status, price)
-     VALUES (${trip.tripId}, 
-     ${trip.trip_name}, 
-     ${trip.departure_time}, 
-     ${trip.arrival_time}, 
-     ${trip.vehicleId}, 
-     ${trip.status}, 
-     ${trip.price})`
-    );
-
-    // Convert Trip to JSON
-    json tripJson = <json>trip;
-
-    check publishTripEvent("CREATE", trip);
-    io:println("Trip Created: " + tripJson.toJsonString());
 }
