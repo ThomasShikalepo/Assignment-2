@@ -89,3 +89,40 @@ function authMenu() returns error? {
         }
     }
 }
+function passengerMenu() {
+    io:println("\nPassenger Menu");
+    io:println("1. Browse Trips");
+    io:println("2. Purchase Ticket");
+    io:println("3. Validate Ticket");
+    io:println("4. Logout");
+}
+
+function passengerSelection() returns error? {
+    while true {
+        passengerMenu();
+        io:print("Enter choice: ");
+        int choice = check int:fromString(io:readln());
+
+        match choice {
+            1 => {
+                check browseTrips();
+            }
+            2 => {
+                check purchaseTicket();
+            }
+
+            3 => {
+                check validateTicket();
+            }
+
+            4 => {
+                io:println("Logging out...");
+                currentPassengerId = ();
+                break; // return to auth menu
+            }
+            _ => {
+                io:println("Invalid choice, try again.");
+            }
+        }
+    }
+}
