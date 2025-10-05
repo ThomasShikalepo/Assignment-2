@@ -31,3 +31,27 @@ kafka:ConsumerConfiguration consumerConfig = {
 };
 
 listener kafka:Listener consumerListener = new (KAFKA_BROKER, consumerConfig);
+
+public type Passenger record {|
+    string passenger_id;
+    string first_name;
+    string last_name;
+    string email;
+    string password;
+    string phone;
+|};
+
+public type Ticket record {|
+    string ticket_id;
+    string passenger_id?;
+    string trip_id;
+    string ticket_type;
+    string status = "CREATED";
+|};
+
+string? currentPassengerId = ();
+
+public function main() returns error? {
+    io:println("PASSAGER SERVIVICE STARTED");
+    check authMenu();
+}
