@@ -80,3 +80,27 @@ function manageTrips() returns error? {
         }
     }
 }
+function deleteTrip() returns error? {
+    io:println("\n--- Delete Trip ---");
+    io:print("Enter Trip ID to delete: ");
+    string tripId = io:readln();
+
+    // Fetch trip before deleting
+    stream<record {|anydata...;|}, sql:Error?> queryResult = dbClient->query(
+        `SELECT * FROM trips WHERE trip_id = ${tripId}`
+    );
+    record {}? fetchedTrip = check queryResult.next();
+
+    // Delete the trip
+    sql:ExecutionResult _ = check dbClient->execute(
+        `DELETE FROM trips WHERE trip_id = ${tripId}`
+    );
+
+    // Publish Kafka event
+    if fetchedTrip is record {} {
+        // Convert record to JSON safely
+        json tripJson = check <json>fetchedTrip;
+        check publishTripEvent("DELETE", tripJson);
+    }
+
+    io:println("Trip deleted successfully!");
