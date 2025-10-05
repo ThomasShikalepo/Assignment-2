@@ -312,3 +312,68 @@ function purchaseTicket() returns error? {
         return;
     }
 }
+
+function validateTicket() returns error? {
+    if currentPassengerId is () {
+        io:println("⚠ You must log in first.");
+        return;
+    }
+
+    io:print("Enter Email to validate: ");
+    string validate_email = io:readln();
+
+    // Check if the ticket exists and belongs to this passenger
+    stream<record {|string passenger_id;|}, sql:Error?> passengerRequest =
+        dbClient->query(
+           `SELECT passenger_id from passengers WHERE email = ${validate_email}`
+        );
+        
+    var passengerRow = passengerRequest.next();
+
+    if passengerRow is sql:Error {
+        io:println("Database error: ", passengerRow.message());
+        return;
+    } else if passengerRow is record {|record {|string passenger_id;|} value;|} {
+        string passenger_id = passengerRow.value.passenger_id;
+
+        stream<record {|string ticket_id; string status; |}, sql:Error?> ticketRequest = dbClient->query(
+            `SELECT ticket_id, status FROM tickets 
+                             WHERE passenger_id = ${passenger_id} AND status = 'PAID' LIMIT 1`
+        );
+
+        var ticketRow = ticketRequest.next();
+
+        if ticketRow is sql:Error {
+            io:println("Database error: ", ticketRow.message());
+            return;
+        } else if ticketRow is record {|record {|string ticket_id; string status;|} value;|} {
+            
+            string ticket_id = ticketRow.value.ticket_id;
+
+            string validation_id = uuid:createType1AsString();
+
+            var updateResult = dbClient->execute(
+                `UPDATE tickets
+                SET status = "VALIDATED", validation_id = ${validation_id} WHERE ticket_id = ${ticket_id}`
+            );
+
+            if updateResult is sql:Error {
+            io:println("Failed to validate ticket: ", updateResult.message());
+            return;
+        }
+        io:println("Ticket validated successfully! Validation ID: ", validation_id);
+        }
+        else {
+        io:println("Ticket not found or does not belong to you.");
+    }
+    }
+}
+
+service on consumerListener {
+    remote function onConsumerRecord(kafka:Caller Caller, kafka:BytesConsumerRecord[] records) returns error? {
+        foreach kafka:BytesConsumerRecord item in records {
+            string msg = check string:fromBytes(item.value);
+            log:printInfo("Receive message from kafka: " + msg);
+        }
+    }
+}
