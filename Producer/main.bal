@@ -1,54 +1,38 @@
-import ballerina/io;
-import ballerina/sql;
-import ballerina/uuid;
-import ballerinax/kafka;
-import ballerinax/mysql;
-import ballerinax/mysql.driver as _;
+function adminMenu() {
+    io:println("\nAdmin Menu");
+    io:println("1. create Trip");
+    io:println("2. Manage Trips(update/cancel)");
+    io:println("3. Publish Service Disruptions or Schedule Updates");
+    io:println("4. View Ticket Sales Reports");
+    io:println("5. Exit");
+}
 
-// Trip record type
-public type Trips record {|
-    string tripId;
-    string trip_name;
-    string departure_time; // e.g., "2025-09-28 07:00:00"
-    string arrival_time; // e.g., "2025-09-28 07:45:00"
-    string vehicleId?;
-    decimal price;
-    string status = "SCHEDULED"; // SCHEDULED, ONGOING, COMPLETED, CANCELLED
-|};
+function adminSelection() returns error? {
+    while true {
+        adminMenu();
+        io:println("Enter your Choice: ");
+        int choice = check int:fromString(io:readln());
 
-type TripSummary record {|
-    string trip_id;
-    string trip_name;
-    string departure_time;
-|};
-
-public type Disruption record {|
-    string disruptionId;
-    string title;
-    string description?;
-    string createdAt?;
-|};
-
-configurable string USER = ?;
-configurable string PASSWORD = ?;
-configurable string HOST = ?;
-configurable int PORT = ?;
-configurable string DATABASE = ?;
-
-final mysql:Client dbClient = check new (
-    host = HOST,
-    user = USER,
-    password = PASSWORD,
-    port = PORT,
-    database = DATABASE
-);
-
-configurable string KAFKA_BROKE = "localhost:9092";
-
-// Producer configuration
-kafka:ProducerConfiguration producerConfig = {
-    clientId: "scheduleUpdates",
-    acks: "all"
-};
-
-kafka:Producer producer = check new (KAFKA_BROKE, producerConfig);
+        match choice {
+            1 => {
+                check createTrip();
+            }
+            2 => {
+                check manageTrips();
+            }
+            3 => {
+                check publishDisruption();
+            }
+            4 => {
+                check viewReports();
+            }
+            5 => {
+                io:println("Exiting Admin menu...");
+                break;
+            }
+            _ => {
+                io:println("Invalid choice, try again.");
+            }
+        }
+    }
+}
