@@ -44,3 +44,11 @@ final mysql:Client dbClient = check new (
 );
 
 configurable string KAFKA_BROKE = "localhost:9092";
+
+// Producer configuration
+kafka:ProducerConfiguration producerConfig = {
+    clientId: "scheduleUpdates",
+    acks: "all"
+};
+
+kafka:Producer producer = check new (KAFKA_BROKE, producerConfig);
