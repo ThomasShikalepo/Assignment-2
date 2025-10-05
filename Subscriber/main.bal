@@ -126,3 +126,72 @@ function passengerSelection() returns error? {
         }
     }
 }
+function createAccount() returns error? {
+    io:print("First name: ");
+    string first_name = io:readln();
+
+    if first_name.trim().length() == 0 {
+        io:println("First name cannot be empty!");
+        return error("Empty first name");
+    }
+
+    io:print("Last name: ");
+    string last_name = io:readln();
+
+    if last_name.trim().length() == 0 {
+        io:println("First name cannot be empty!");
+        return error("Empty last name");
+    }
+
+    io:print("Email: ");
+    string email = io:readln();
+
+    if email.trim().length() == 0 {
+        io:println("First name cannot be empty!");
+        return error("Empty email");
+    }
+
+    io:print("Password: ");
+    string password = io:readln();
+
+    if password.trim().length() == 0 {
+        io:println("First name cannot be empty!");
+        return error("Empty passsword");
+    }
+
+    io:print("Phone number: ");
+    string phone = io:readln();
+
+    if phone.trim().length() == 0 {
+        io:println("First name cannot be empty!");
+        return error("Empty phone");
+    }
+
+    Passenger p = {
+        passenger_id: uuid:createType1AsString(),
+        first_name: first_name,
+        last_name: last_name,
+        email: email,
+        password: password,
+        phone: phone
+    };
+
+    sql:ExecutionResult _ = check dbClient->execute(
+        `INSERT INTO passengers (passenger_id, first_name, last_name, email, password, phone)
+        value (${p.passenger_id}, ${p.first_name}, ${p.last_name}, ${p.email}, ${p.password}, ${p.phone})`
+    );
+
+    io:println("Account created successfully!");
+}
+
+// CREATE TABLE passengers (
+//     passenger_id CHAR(36) PRIMARY KEY,
+//     first_name   VARCHAR(100) NOT NULL,
+//     last_name    VARCHAR(100) NOT NULL,
+//     email        VARCHAR(150) UNIQUE NOT NULL,
+//     password     VARCHAR(255) NOT NULL,
+//     phone        VARCHAR(50),
+//     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+// );
+
+// Login
