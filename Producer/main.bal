@@ -52,3 +52,31 @@ kafka:ProducerConfiguration producerConfig = {
 };
 
 kafka:Producer producer = check new (KAFKA_BROKE, producerConfig);
+
+function manageTrips() returns error? {
+    io:println("\n--- Manage Trips ---");
+    io:println("1. Update Trip");
+    io:println("2. Delete Trip");
+    io:println("3. back to Admin Menu");
+
+    io:print("Enter your choice: ");
+    int choice = check int:fromString(io:readln());
+
+    match choice {
+        1 => {
+            check updateTrip();
+        }
+
+        2 => {
+            check deleteTrip();
+        }
+
+        3 => {
+            io:println("Returning to Admin Menu...");
+            adminMenu();
+        }
+        _ => {
+            io:println("Invalid choice, try again.");
+        }
+    }
+}
