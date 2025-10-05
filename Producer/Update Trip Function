@@ -1,0 +1,58 @@
+function updateTrip() returns error? {
+    io:println("\n--- Update Trip ---");
+    io:print("Enter Trip ID to update: ");
+    string tripId = io:readln();
+
+    io:println("What do you want to update?");
+    io:println("1. Status");
+    io:println("2. Departure Time");
+    io:println("3. Arrival Time");
+    io:println("4. Vehicle ID");
+
+    int choice = check int:fromString(io:readln());
+
+    string newValue = "";
+
+    if choice == 1 {
+        io:print("Enter new Status (SCHEDULED/ONGOING/COMPLETED/CANCELLED): ");
+        newValue = io:readln();
+        sql:ExecutionResult _ = check dbClient->execute(
+            `UPDATE trips SET status = ${newValue} WHERE trip_id = ${tripId}`
+        );
+    } else if choice == 2 {
+        io:print("Enter new Departure Time (yyyy-mm-dd hh:mm:ss): ");
+        newValue = io:readln();
+        sql:ExecutionResult _ = check dbClient->execute(
+            `UPDATE trips SET departure_time = ${newValue} WHERE trip_id = ${tripId}`
+        );
+    } else if choice == 3 {
+        io:print("Enter new Arrival Time (yyyy-mm-dd hh:mm:ss): ");
+        newValue = io:readln();
+        sql:ExecutionResult _ = check dbClient->execute(
+            `UPDATE trips SET arrival_time = ${newValue} WHERE trip_id = ${tripId}`
+        );
+    } else if choice == 4 {
+        io:print("Enter new Vehicle ID: ");
+        newValue = io:readln();
+        sql:ExecutionResult _ = check dbClient->execute(
+            `UPDATE trips SET vehicle_Id = ${newValue} WHERE trip_id = ${tripId}`
+        );
+    } else {
+        io:println("Invalid choice. Cancelling update.");
+        return;
+    }
+
+    // Fetch updated trip
+    stream<record {|anydata...;|}, sql:Error?> queryResult = dbClient->query(
+        `SELECT * FROM trips WHERE trip_id = ${tripId}`
+    );
+    record {}? fetchedTrip = check queryResult.next();
+
+    if fetchedTrip is record {} {
+        // Convert record to JSON safely
+        json tripJson = check <json>fetchedTrip;
+        check publishTripEvent("UPDATE", tripJson);
+    }
+
+    io:println("Trip updated successfully!");
+}
